@@ -1,4 +1,4 @@
-name: 🚀 Deploy MERN App to EC2
+name: Deploy MERN App to EC2
 
 on:
   push:
@@ -10,34 +10,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧩 Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: ⚙️ Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: 📦 Install dependencies
+      - name: Install Dependencies
         working-directory: MERN-Stack-Ecommerce-App-master
         run: npm install
 
-      - name: Build frontend
-        run: |
-         cd MERN-Stack-Ecommerce-App-master
-         npm install
-         CI=false npm run build
+      - name: Build App
+        working-directory: MERN-Stack-Ecommerce-App-master
+        run: npm run build
 
-      - name: 📤 Deploy build files to EC2
+      - name: Deploy to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: 13.234.4.41
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "MERN-Stack-Ecommerce-App-master/build/*"
           target: "/var/www/html"
-          overwrite: true
           port: 22
+          overwrite: true
+
 
       - name: 🔁 Restart Nginx on EC2
         uses: appleboy/ssh-action@v0.1.10

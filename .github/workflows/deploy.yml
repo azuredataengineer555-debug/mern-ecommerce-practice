@@ -19,7 +19,7 @@ jobs:
           node-version: 18
 
       - name: Install dependencies and build project
-        working-directory: MERN-Stack-Ecommerce-App-master
+        working-directory: ./MERN-Stack-Ecommerce-App-master
         run: |
           npm install
           CI=false npm run build
@@ -31,11 +31,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-<<<<<<< HEAD
-          source: "build/*"
-=======
           source: "MERN-Stack-Ecommerce-App-master/build/*"
->>>>>>> c4422dd (Added deploy workflow for EC2)
           target: "/var/www/html"
           overwrite: true
 

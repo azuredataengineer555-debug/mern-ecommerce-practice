@@ -1,4 +1,4 @@
-name: 🚀 Auto Deploy MERN App to EC2
+name: Deploy MERN E-commerce App to EC2
 
 on:
   push:
@@ -10,40 +10,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Use Node.js 18
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: Install dependencies
+      - name: Install dependencies and build project
         working-directory: MERN-Stack-Ecommerce-App-master
-        run: npm install
+        run: |
+          npm install
+          CI=false npm run build
 
-      - name: Build frontend (ignore ESLint warnings)
-        working-directory: MERN-Stack-Ecommerce-App-master
-        run: CI=false npm run build
-
-      - name: Deploy build folder to EC2
+      - name: Copy build folder to EC2
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           source: "MERN-Stack-Ecommerce-App-master/build/*"
-          target: "/var/www/html/"
+          target: "/var/www/html"
           overwrite: true
-          strip_components: 2
-          timeout: 2m
 
       - name: Restart Nginx on EC2
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
+            sudo chown -R www-data:www-data /var/www/html
+            sudo chmod -R 755 /var/www/html
             sudo systemctl restart nginx
-            echo "✅ Deployment complete!"
+            echo "✅ Deployment successful!"

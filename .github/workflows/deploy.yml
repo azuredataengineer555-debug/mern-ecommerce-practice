@@ -17,7 +17,7 @@ jobs:
       # Step 2 — Build React app
       - name: 🏗️ Build React App
         run: |
-          npm ci
+          npm install
           npm run build
 
       # Step 3 — Copy all files to EC2 (includes Dockerfile and build)

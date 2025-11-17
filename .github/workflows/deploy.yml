@@ -10,57 +10,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout Repo
       - name: 🧾 Checkout repository
         uses: actions/checkout@v3
 
-      # 2) Setup Node.js
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # 3) Build React App
       - name: 🏗️ Build React App
         working-directory: ./MERN-Stack-Ecommerce-App-master
         run: |
           npm install
           CI=false npm run build
 
-      # 4) Make sure /home/ubuntu/app exists on EC2
-      - name: 📁 Create /home/ubuntu/app folder on EC2
+      - name: 📁 Create /home/ubuntu/app folder
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: mkdir -p /home/ubuntu/app
+          script: |
+            rm -rf /home/ubuntu/app/*
+            mkdir -p /home/ubuntu/app
 
-      # 5) Upload build folder to EC2
-      - name: 📤 Upload build folder to EC2
+      # Copy ONLY the build folder contents
+      - name: 📤 Upload build folder
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          source: "MERN-Stack-Ecommerce-App-master/build"
-          target: "/home/ubuntu/app"
+          source: "MERN-Stack-Ecommerce-App-master/build/*"
+          target: "/home/ubuntu/app/build"
           overwrite: true
 
-      # 6) Upload Dockerfile to EC2
-      - name: 📤 Upload Dockerfile to EC2
+      # Upload Dockerfile FLAT (no subfolder)
+      - name: 📤 Upload Dockerfile
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
           source: "MERN-Stack-Ecommerce-App-master/Dockerfile"
-          target: "/home/ubuntu/app"
+          target: "/home/ubuntu/app/"
 
-      # 7) Build Docker image + restart container on EC2
-      - name: 🔁 Restart frontend container on EC2
+      - name: 🔁 Restart Docker container
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -69,13 +64,11 @@ jobs:
           script: |
             cd /home/ubuntu/app
 
-            echo "🔹 Stop and remove old container"
+            echo "Stop old container"
             docker rm -f frontend || true
 
-            echo "🔹 Build new Docker image"
+            echo "Build new container"
             docker build -t fusion-frontend .
 
-            echo "🔹 Run new container"
+            echo "Run new container"
             docker run -d --name frontend -p 80:80 fusion-frontend
-
-            echo "🎉 Deployment Completed Successfully!"

@@ -10,52 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: ⚙️ Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: 🏗️ Build React App
+      - name: Build React App
         working-directory: ./MERN-Stack-Ecommerce-App-master
         run: |
           npm install
           CI=false npm run build
 
-      - name: 📁 Create /home/ubuntu/app folder
+      - name: Create app folder on EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            rm -rf /home/ubuntu/app/*
-            mkdir -p /home/ubuntu/app
+          script: mkdir -p /home/ubuntu/app
 
-      # Copy ONLY the build folder contents
-      - name: 📤 Upload build folder
+      - name: Upload build folder
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "MERN-Stack-Ecommerce-App-master/build/*"
-          target: "/home/ubuntu/app/build"
+          source: "MERN-Stack-Ecommerce-App-master/build"
+          target: "/home/ubuntu/app"
           overwrite: true
 
-      # Upload Dockerfile FLAT (no subfolder)
-      - name: 📤 Upload Dockerfile
+      - name: Upload Dockerfile
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "MERN-Stack-Ecommerce-App-master/Dockerfile"
-          target: "/home/ubuntu/app/"
+          target: "/home/ubuntu/app"
 
-      - name: 🔁 Restart Docker container
+      - name: Build + Run Docker container
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -63,12 +54,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/ubuntu/app
-
-            echo "Stop old container"
             docker rm -f frontend || true
-
-            echo "Build new container"
             docker build -t fusion-frontend .
-
-            echo "Run new container"
             docker run -d --name frontend -p 80:80 fusion-frontend

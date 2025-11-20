@@ -7,9 +7,6 @@ pipeline {
 
         FRONTEND_REPO    = "mern-frontend"
         BACKEND_REPO     = "mern-backend"
-
-        FRONTEND_DOCKERFILE = "MERN-Stack-Ecommerce-App-master/Dockerfile"
-        BACKEND_DOCKERFILE  = "MERN-Stack-Ecommerce-App-master/backend/Dockerfile"
     }
 
     stages {
@@ -26,9 +23,9 @@ pipeline {
             steps {
                 dir('MERN-Stack-Ecommerce-App-master') {
                     sh '''
-                    echo "======== BUILDING FRONTEND ========"
-                    npm install
-                    CI=false npm run build
+                        echo "=== BUILDING FRONTEND ==="
+                        npm install
+                        CI=false npm run build
                     '''
                 }
             }
@@ -39,8 +36,8 @@ pipeline {
             steps {
                 dir('MERN-Stack-Ecommerce-App-master/backend') {
                     sh '''
-                    echo "======== INSTALLING BACKEND DEPENDENCIES ========"
-                    npm install
+                        echo "=== INSTALLING BACKEND DEPENDENCIES ==="
+                        npm install
                     '''
                 }
             }
@@ -49,56 +46,48 @@ pipeline {
         stage('Build Docker Images') {
             agent { label 'deploy' }
             steps {
-                sh """
-                echo "======== BUILDING FRONTEND DOCKER IMAGE ========"
-                docker build -t ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest \
-                    -f ${FRONTEND_DOCKERFILE} MERN-Stack-Ecommerce-App-master
+                sh '''
+                    echo "=== BUILDING FRONTEND IMAGE ==="
+                    docker build -t ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest \
+                    -f MERN-Stack-Ecommerce-App-master/Dockerfile MERN-Stack-Ecommerce-App-master
 
-                echo "======== BUILDING BACKEND DOCKER IMAGE ========"
-                docker build -t ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest \
-                    -f ${BACKEND_DOCKERFILE} MERN-Stack-Ecommerce-App-master/backend
-                """
+                    echo "=== BUILDING BACKEND IMAGE ==="
+                    docker build -t ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest \
+                    -f MERN-Stack-Ecommerce-App-master/backend/Dockerfile MERN-Stack-Ecommerce-App-master/backend
+                '''
             }
         }
 
         stage('Login to AWS ECR') {
             agent { label 'deploy' }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'jenkins-ecr-user']]) {
-                    sh """
-                    aws ecr get-login-password --region ${AWS_REGION} | \
-                    docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
-                    """
-                }
+                sh '''
+                    aws ecr get-login-password --region ${AWS_REGION} \
+                    | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+                '''
             }
         }
 
         stage('Push Images to ECR') {
             agent { label 'deploy' }
             steps {
-                sh """
-                echo "======== PUSHING FRONTEND IMAGE ========"
-                docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest
-
-                echo "======== PUSHING BACKEND IMAGE ========"
-                docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest
-                """
+                sh '''
+                    docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest
+                    docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest
+                '''
             }
         }
 
-        stage('Deploy on Worker Node') {
+        stage('Deploy Containers') {
             agent { label 'deploy' }
             steps {
-                sh """
+                sh '''
                     docker rm -f frontend || true
                     docker rm -f backend || true
 
-                    echo "======== STARTING FRONTEND CONTAINER ========"
                     docker run -d --name frontend -p 80:80 ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest
-
-                    echo "======== STARTING BACKEND CONTAINER ========"
                     docker run -d --name backend -p 5000:5000 ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest
-                """
+                '''
             }
         }
     }

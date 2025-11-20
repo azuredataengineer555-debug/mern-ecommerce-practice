@@ -10,9 +10,6 @@ pipeline {
 
         FRONTEND_DOCKERFILE = "MERN-Stack-Ecommerce-App-master/Dockerfile"
         BACKEND_DOCKERFILE  = "MERN-Stack-Ecommerce-App-master/backend/Dockerfile"
-
-        FRONTEND_PORT    = "80"
-        BACKEND_PORT     = "3000"
     }
 
     stages {
@@ -20,8 +17,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/azuredataengineer555-debug/mern-ecommerce-practice.git',
-                    credentialsId: 'github-pat-token'
+                    url: 'https://github.com/azuredataengineer555-debug/mern-ecommerce-practice.git'
             }
         }
 
@@ -38,15 +34,29 @@ pipeline {
             }
         }
 
+        stage('Build Backend App') {
+            agent { label 'deploy' }
+            steps {
+                dir('MERN-Stack-Ecommerce-App-master/backend') {
+                    sh '''
+                    echo "======== INSTALLING BACKEND DEPENDENCIES ========"
+                    npm install
+                    '''
+                }
+            }
+        }
+
         stage('Build Docker Images') {
             agent { label 'deploy' }
             steps {
                 sh """
+                echo "======== BUILDING FRONTEND DOCKER IMAGE ========"
                 docker build -t ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest \
-                -f ${FRONTEND_DOCKERFILE} MERN-Stack-Ecommerce-App-master
+                    -f ${FRONTEND_DOCKERFILE} MERN-Stack-Ecommerce-App-master
 
+                echo "======== BUILDING BACKEND DOCKER IMAGE ========"
                 docker build -t ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest \
-                -f ${BACKEND_DOCKERFILE} MERN-Stack-Ecommerce-App-master/backend
+                    -f ${BACKEND_DOCKERFILE} MERN-Stack-Ecommerce-App-master/backend
                 """
             }
         }
@@ -67,7 +77,10 @@ pipeline {
             agent { label 'deploy' }
             steps {
                 sh """
+                echo "======== PUSHING FRONTEND IMAGE ========"
                 docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest
+
+                echo "======== PUSHING BACKEND IMAGE ========"
                 docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest
                 """
             }
@@ -80,8 +93,11 @@ pipeline {
                     docker rm -f frontend || true
                     docker rm -f backend || true
 
+                    echo "======== STARTING FRONTEND CONTAINER ========"
                     docker run -d --name frontend -p 80:80 ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FRONTEND_REPO}:latest
-                    docker run -d --name backend -p 3000:3000 ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest
+
+                    echo "======== STARTING BACKEND CONTAINER ========"
+                    docker run -d --name backend -p 5000:5000 ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${BACKEND_REPO}:latest
                 """
             }
         }
